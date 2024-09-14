@@ -44,3 +44,47 @@ La documentación oficial dice lo siguiente:
 - `Proporciona una especificación abierta`. `R2DBC` es una especificación abierta y establece una interfaz de proveedor
   de servicios (SPI) para que los proveedores de controladores implementen y los clientes consuman.
 
+## Crea contenedor de PostgreSQL con Docker Compose
+
+Para almacenar nuestros datos, utilizaremos `PostgreSQL`. Nuestro primer paso consiste en configurar una instancia local
+de `PostgreSQL` usando `Docker Compose`. Para ello, necesitamos crear el siguiente archivo `compose.yml`.
+
+````yml
+services:
+  postgres:
+    image: postgres:15.2-alpine
+    container_name: c-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: db_webflux_angular_r2dbc
+      POSTGRES_USER: magadiflo
+      POSTGRES_PASSWORD: magadiflo
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+    name: postgres_data
+````
+
+Como se observa en el archivo anterior, estamos creando un servicio de postgres que creará nuestro contenedor. En el
+tutorial define otro servicio para crear una instancia de `PgAdmin`, en nuestro caso no lo requerimos, dado que
+usaré `DBeaver` que ya tengo instalada en mi pc, para interactuar con la base de datos de postgres.
+
+Iniciamos el contenedor ejecutamos el siguiente comando en la misma carpeta del archivo `compose.yml` y luego
+verificamos que el contenedor se haya creado.
+
+````bash
+$ docker compose up -d                           
+ 
+$ docker container ls -a
+CONTAINER ID   IMAGE                  COMMAND                  CREATED          STATUS                           PORTS                    NAMES
+5ad2963bd825   postgres:15.2-alpine   "docker-entrypoint.s…"   33 seconds ago   Up 31 seconds                    0.0.0.0:5433->5432/tcp   c-postgres
+````
+
+Ahora, usando `DBeaver` nos conectamos a la base de datos de `PostgresSQL` que está corriendo en su propio contenedor de
+docker.
+
+![01.png](assets/01.png)
