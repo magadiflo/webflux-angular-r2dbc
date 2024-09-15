@@ -517,3 +517,31 @@ logging:
     io.r2dbc.postgresql.QUERY: DEBUG
     io.r2dbc.postgresql.PARAM: DEBUG
 ````
+
+## Ejecuta Primera Migración con Liquibase
+
+Ahora que ya tenemos los archivos `changeLog` configurados correctamente y también las propiedades de configuración
+para que `Liquibase` se ejecute sin problemas, vamos a levantar la aplicación y ver qué resultados obtenemos.
+
+Como observamos en la siguiente imagen, se está ejecutando correctamente los archivos `changeLog` definidos.
+
+![02.png](assets/02.png)
+
+Si revisamos la base de datos, vemos que nuestra tabla `persons` es creado correctamente, además `Liquibase` crea
+automáticamente dos tablas: `DATABASECHANGELOG` y `DATABASECHANGELOGLOCK`. Estas tablas son esenciales
+para el funcionamiento de `Liquibase`:
+
+1. `DATABASECHANGELOG`: Esta tabla almacena un registro de todos los cambios (`changelogs`) que se han aplicado a la
+   base de datos. Cada entrada incluye detalles como el autor del cambio, la fecha de aplicación y una descripción del
+   cambio.
+
+
+2. `DATABASECHANGELOGLOCK`: Esta tabla se utiliza para gestionar el control de concurrencia. Asegura que solo una
+   instancia de `Liquibase` pueda aplicar cambios a la base de datos en un momento dado, evitando conflictos y problemas
+   de sincronización.
+
+Estas tablas permiten a `Liquibase` mantener un control preciso y ordenado de los cambios en la base de datos,
+asegurando que todos los cambios se apliquen de manera correcta y en el orden adecuado.
+
+![03.png](assets/03.png)
+
