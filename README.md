@@ -518,7 +518,7 @@ logging:
     io.r2dbc.postgresql.PARAM: DEBUG
 ````
 
-## Ejecuta Primera Migración con Liquibase
+## Ejecuta Primera Migración con Liquibase (Crea tabla persons)
 
 Ahora que ya tenemos los archivos `changeLog` configurados correctamente y también las propiedades de configuración
 para que `Liquibase` se ejecute sin problemas, vamos a levantar la aplicación y ver qué resultados obtenemos.
@@ -545,3 +545,59 @@ asegurando que todos los cambios se apliquen de manera correcta y en el orden ad
 
 ![03.png](assets/03.png)
 
+## Crea tabla items y relaciona con persons
+
+Basándonos en la entidad `Item` crearemos la tabla `items` y al final estableceremos la relación de clave foránea con
+la tabla `persons`.
+
+````yml
+databaseChangeLog:
+  - changeSet:
+      id: 2_create_items_table
+      author: Martín
+      changes:
+        - createTable:
+            tableName: items
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: description
+                  type: VARCHAR(4000)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(15)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_modified_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: assignee_id
+                  type: BIGINT
+                  constraints:
+                    foreignKeyName: fk_items_assignee_id
+                    references: persons(id)
+````
