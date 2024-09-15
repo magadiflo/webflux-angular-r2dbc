@@ -2,7 +2,23 @@ server:
   port: 8080
   error:
     include-message: always
-    
+
 spring:
   application:
     name: todo-list-backend
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/db_webflux_angular_r2dbc
+    username: magadiflo
+    password: magadiflo
+
+  liquibase:
+    change-log: classpath:/db/db.changelog-master.yml
+    url: jdbc:postgresql://localhost:5433/db_webflux_angular_r2dbc
+    user: magadiflo
+    password: magadiflo
+
+logging:
+  level:
+    dev.magadiflo.app: DEBUG
+    io.r2dbc.postgresql.QUERY: DEBUG
+    io.r2dbc.postgresql.PARAM: DEBUG

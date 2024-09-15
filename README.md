@@ -382,3 +382,138 @@ que suelen ofrecer los marcos ORM no están disponibles, como, por ejemplo, el a
 diferida. Como los objetos relacionados no se pueden mapear automáticamente, los campos `assignee` y `tags` deben
 anotarse con `@Transient` para indicarle al marco de mapeo que los ignore. En la siguiente sección, veremos cómo
 mapear estos objetos.
+
+## [Versionado de base de datos con Liquibase](https://github.com/magadiflo/spring-boot-liquibase/blob/main/README.md)
+
+Por último, pero no por ello menos importante, `el esquema de la base de datos no se puede crear automáticamente en
+función de los objetos del dominio`. Para superar este problema, podemos utilizar `Liquibase` para crear y mantener
+nuestro esquema.
+
+Recordemos que cuando creamos el proyecto, agregamos la dependencia de `Spring Data R2DBC`. Ahora, adicionalmente
+agregamos la dependencia de `Liquibase` y en automático se nos agrega la dependencia `spring-jdbc`, es porque
+`Liquibase`, por defecto, utiliza `JDBC` para interactuar con la base de datos. Aunque estemos utilizando
+`Spring Data R2DBC` para operaciones reactivas, `Liquibase` aún requiere `JDBC` para ejecutar sus scripts de migración
+de base de datos.
+
+`Spring Data R2DBC` y `Spring WebFlux` están diseñados para operaciones reactivas y no bloqueantes, pero `Liquibase` no
+tiene soporte nativo para `R2DBC` y depende de `JDBC` para sus operaciones. Por eso, al agregar `Liquibase` a tu
+proyecto, también se agrega `spring-jdbc` como dependencia.
+
+````xml
+
+<dependencies>
+    <dependency>
+        <groupId>org.liquibase</groupId>
+        <artifactId>liquibase-core</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-jdbc</artifactId>
+    </dependency>
+</dependencies>
+````
+
+Otro punto importante es que cuando generamos el proyecto agregando la dependencia de `Liquibase` desde
+`Spring Initializr`, se nos crea el directorio `src/main/resources/db/changelog`. Este directorio será el que usaremos
+para crear nuestros archivos de migración.
+
+Iniciemos creando un archivo maestro llamado `db.changelog-master.yml`, será el que hará referencia a todos los archivos
+de `changeLog` en el orden adecuado. Estos archivos `changeLog` estarán ubicados en el directorio definido en el `path`.
+El contenido y la ubicación de este archivo será el siguiente:
+
+````yml
+# src/main/resources/db/db.changelog-master.yml
+databaseChangeLog:
+  - includeAll:
+      path: /db/changelog/
+````
+
+Dentro del directorio `/db/changelog/` crearemos nuestra primera migración. El archivo que crearemos tendrá una
+nomenclatura propia, es decir `<migration_number>_<what_does_this_migration_do>.yml`.
+
+El `changeSet` que crearemos con esta migración será crear la tabla `persons` en la base de datos. Para eso, tomando
+como referencia nuestra entidad `Person`, agregamos las configuraciones necesarias para crear la tabla.
+
+````yml
+# src/main/resources/db/changelog/1_create_persons_table.yml
+databaseChangeLog:
+  - changeSet:
+      id: 1_create_persons_table
+      author: Martín
+      changes:
+        - createTable:
+            tableName: persons
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: first_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_modified_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+````
+
+Como último paso para ejecutar la aplicación y ver la creación de la tabla usando `Liquibase`, es precisamente
+configurar `Liquibase` en el `application.yml`, donde le definiremos el archivo maestro y las propiedades de conexión
+`jdbc` para conectarse a la base de datos.
+
+A continuación, se muestra las propiedades completas definidas en el `application.yml` de nuestra aplicación.
+
+````yml
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: todo-list-backend
+
+  # Configuración de controlador R2DBC
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/db_webflux_angular_r2dbc
+    username: magadiflo
+    password: magadiflo
+
+  # Liquibase (Actualización de esquema)
+  liquibase:
+    change-log: classpath:/db/db.changelog-master.yml
+    url: jdbc:postgresql://localhost:5433/db_webflux_angular_r2dbc
+    user: magadiflo
+    password: magadiflo
+
+# Logging
+logging:
+  level:
+    dev.magadiflo.app: DEBUG
+    io.r2dbc.postgresql.QUERY: DEBUG
+    io.r2dbc.postgresql.PARAM: DEBUG
+````
