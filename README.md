@@ -88,3 +88,20 @@ Ahora, usando `DBeaver` nos conectamos a la base de datos de `PostgresSQL` que e
 docker.
 
 ![01.png](assets/01.png)
+
+## Crea una aplicación web reactiva con Spring Data R2DBC
+
+Para demostrar cómo lidiar con las relaciones en la programación reactiva, necesitamos enriquecer nuestro modelo de
+datos. En la versión anterior de nuestra aplicación, los usuarios podían trabajar juntos en una lista de tareas
+compartida. Podrían realizar las siguientes acciones:
+
+- Agregar un item a la lista compartida.
+- Editar la descripción de un item.
+- Cambiar el estado de un item.
+- Eliminar un item.
+
+En la nueva versión que vamos a desarrollar, también van a poder editar los ítems con el fin de:
+
+- Definir una persona asignada (opcional)
+- Definir un conjunto de etiquetas como `Private`, `Sport`, `Work`, etc. (0 a n elementos)
+
