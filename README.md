@@ -230,3 +230,155 @@ Notar que he agregado manualmente la dependencia de `MapStruct` y de `Swagger (O
 de `MapStruct`, ha sido necesario la configuración del plugin de `maven-compiler-plugin`. Para mayor información
 sobre el porqué de esta configuración visitar el repositorio
 [webflux-angular-mongodb](https://github.com/magadiflo/webflux-angular-mongodb/blob/main/README.md).
+
+## El modelo de datos
+
+Vamos a crear las distintas entidades que utilizaremos en este proyecto.
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@Table(name = "items")
+public class Item {
+    @Id
+    private Long id;
+    private String description;
+    @Builder.Default
+    private ItemStatus status = ItemStatus.TO_DO;
+    private Long assigneeId;
+
+    @Transient
+    private Person assignee;
+    @Transient
+    private List<Tag> tags;
+
+    @Version
+    private Long version;
+    @CreatedDate
+    private LocalDateTime createdDate;
+    @LastModifiedDate
+    private LocalDateTime lastModifiedDate;
+}
+````
+
+````java
+public enum ItemStatus {
+    TO_DO,
+    IN_PROGRESS,
+    DONE
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@Table(name = "persons")
+public class Person {
+    @Id
+    private Long id;
+    private String firstName;
+    private String lastName;
+
+    @Version
+    private Long version;
+    @CreatedDate
+    private LocalDateTime createdDate;
+    @LastModifiedDate
+    private LocalDateTime lastModifiedDate;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@Table(name = "tags")
+public class Tag {
+    @Id
+    private Long id;
+    private String name;
+
+    @Version
+    private Long version;
+    @CreatedDate
+    private LocalDateTime createdDate;
+    @LastModifiedDate
+    private LocalDateTime lastModifiedDate;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+@Table(name = "item_tags")
+public class ItemTag {
+    @Id
+    private Long id;
+    private Long itemId;
+    private Long tagId;
+}
+````
+
+Lo primero que hay que notar es el uso de la anotación `@Table`. Aunque no es obligatorio anotar nuestros objetos de
+dominio, no hacerlo afectaría el rendimiento. En realidad, esta anotación es utilizada por el marco de mapeo para
+preprocesar los objetos de dominio con el fin de extraer los metadatos necesarios para interactuar con la base de datos.
+
+Otra anotación importante es `@Id`. Se utiliza para mapear un campo de clase a la `clave primaria de la tabla`. Tenga
+en cuenta que, con `Spring Data R2DBC`, no hay generación automática de identificadores únicos. Ni siquiera podemos
+especificar una estrategia de generación. Para resolver este problema, simplemente podemos indicarle a `PostgreSQL` que
+genere automáticamente el `ID` cuando se crea un registro utilizando el tipo de datos `BIGSERIAL` (porque usamos Long,
+si usáramos Integer usaríamos el SERIAL).
+
+Además, `Spring Data R2DBC no admite identificadores embebidos`. En otras palabras, no podemos definir una clave
+principal compuesta. Esta limitación es bastante molesta porque nos obliga a utilizar un ID único generado en su lugar
+y esto tiene un impacto directo en la cantidad de código que necesitamos escribir. Verá este impacto con más detalle
+cuando guardemos algunos registros en la tabla `item_tags`. Esta tabla, que se utiliza para representar la relación
+de `muchos a muchos` entre `items` y `tags`, tiene una clave técnica, mientras que podríamos haber utilizado el ID del
+item y el ID del tag como clave principal compuesta.
+
+Las entidades `Item`, `Person` y `Tag` tienen la anotación `@Version` sobre un campo de tipo `Long`. Esta anotación
+es totalmente compatible y viene con un mecanismo de `bloqueo optimista`. Cada vez que se va a guardar un registro, se
+compara la versión actual del registro con la proporcionada y, si son idénticas, se incrementa la versión y se guarda el
+registro. Si son diferentes, el registro no se guarda y se devuelve un error.
+
+Las anotaciones de auditoría como `@CreatedDate` o `@LastModifiedDate` también son compatibles. Para habilitar la
+función de auditoría, debemos declararla explícitamente con la anotación `@EnableR2dbcAuditing`. Podemos, por ejemplo,
+agregarla sobre la clase principal de la aplicación.
+
+````java
+
+@EnableR2dbcAuditing
+@SpringBootApplication
+public class TodoListBackendApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(TodoListBackendApplication.class, args);
+    }
+}
+````
+
+Un aspecto muy importante que hay que tener en cuenta antes de decidirse a utilizar `Spring Data R2DBC` es la falta de
+compatibilidad con relaciones. A diferencia de `Spring Data JPA`, no es posible utilizar un marco `ORM` avanzado como
+Hibernate. `Spring Data R2DBC` es un mapeador de objetos simple y limitado. Como consecuencia, muchas de las funciones
+que suelen ofrecer los marcos ORM no están disponibles, como, por ejemplo, el almacenamiento en caché o la carga
+diferida. Como los objetos relacionados no se pueden mapear automáticamente, los campos `assignee` y `tags` deben
+anotarse con `@Transient` para indicarle al marco de mapeo que los ignore. En la siguiente sección, veremos cómo
+mapear estos objetos.
