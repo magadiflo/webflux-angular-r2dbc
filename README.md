@@ -717,3 +717,86 @@ $ db_webflux_angular_r2dbc=# SELECT * FROM databasechangelog;
  4_create_items_tags_table | Martín | db/changelog/4_create_items_tags_table.yml | 2024-09-15 22:36:03.182652 |             4 | EXECUTED | 9:c435311578c16b8ca7b3a891d15d6dd2 | createTable tableName=items_tags |          |     | 4.27.0    |          |        | 6457763088
 (4 rows)
 ````
+
+## Poblando tablas con datos de prueba
+
+Para poblar las tablas vamos a crear un nuevo archivo `changeLog` donde agregaremos los distintos archivos `sql` que
+se encargarán de poblar individualmente cada tabla. Estos archivos los crearemos dentro del siguiente directorio
+`src/main/resources/db/mock/`:
+
+````sql
+-- db/mock/insert_mock_persons.sql
+INSERT INTO persons(id, first_name, last_name)
+VALUES(1, 'Yumixsa', 'Ramos'),
+(2, 'María', 'Díaz'),
+(3, 'Vanessa', 'Bello'),
+(4, 'Fred', 'Curay');
+````
+
+````sql
+-- db/mock/insert_mock_items.sql
+INSERT INTO items(id, description, status, assignee_id)
+VALUES(1, 'El folleto debe enviarse vía mail', 'TO_DO', 1),
+(2, 'El usuario debe poder reestablecer su contraseña', 'TO_DO', 2),
+(3, 'El usuario podrá exportar sus datos', 'IN_PROGRESS', 3),
+(4, 'El usuario tendrá 7 días gratis de acceso premium', 'DONE', 4);
+````
+
+````sql
+-- db/mock/insert_mock_tags.sql
+INSERT INTO tags(id, name)
+VALUES(1, 'Work'),
+(2, 'Private'),
+(3, 'Meeting'),
+(4, 'Sport'),
+(5, 'Meal'),
+(6, 'Drink'),
+(7, 'Vacation');
+````
+
+````sql
+-- db/mock/insert_mock_items_tags.sql
+INSERT INTO items_tags(item_id, tag_id)
+VALUES(1,2),
+(1,7),
+(2,1),
+(2,3),
+(2,5),
+(2,6),
+(3,1),
+(3,6),
+(4,2);
+````
+
+Finalmente, en el directorio `src/main/resources/db/changelog` crearemos el nuevo `changeLog`, dentro del cual
+agregaremos un `changeSet` y cuyos `changeType` serán del tipo `sqlFile` donde referenciaremos a cada uno de los
+archivos `sql` creados anteriormente.
+
+````yml
+databaseChangeLog:
+  - changeSet:
+      id: 5_add_mock_data
+      author: Martín
+      changes:
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_persons.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_items.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_tags.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_items_tags.sql
+````
+
+Si ahora ejecutamos la aplicación, la migración se efectuará correctamente. Para comprobarlo vamos a revisar los datos
+de cada tabla. En este caso realizo la siguiente consulta para ver todas las tablas.
+
+![07.png](assets/07.png)

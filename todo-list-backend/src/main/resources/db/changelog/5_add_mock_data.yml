@@ -1,0 +1,21 @@
+databaseChangeLog:
+  - changeSet:
+      id: 5_add_mock_data
+      author: Martín
+      changes:
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_persons.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_items.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_tags.sql
+        - sqlFile:
+            encoding: utf-8
+            splitStatements: false
+            path: /db/mock/insert_mock_items_tags.sql
