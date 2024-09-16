@@ -800,3 +800,46 @@ Si ahora ejecutamos la aplicación, la migración se efectuará correctamente. P
 de cada tabla. En este caso realizo la siguiente consulta para ver todas las tablas.
 
 ![07.png](assets/07.png)
+
+## Los repositorios
+
+`Spring Data R2DBC` nos permite crear repositorios mediante la creación de interfaces que extienden la interfaz
+`R2dbcRepository`. Esta interfaz a su vez extiende de `ReactiveCrudRepository` y de `ReactiveSortingRepository`.
+
+A continuación, se muestran ejemplos de repositorios.
+
+````java
+public interface ItemRepository extends R2dbcRepository<Item, Long> {
+}
+````
+
+````java
+public interface ItemTagRepository extends R2dbcRepository<ItemTag, Long> {
+    Flux<ItemTag> findAllByItemId();
+
+    Mono<Integer> deleteAllByItemId(Long itemId);
+}
+````
+
+El ejemplo anterior muestra la creación de consultas básicas mediante métodos de consulta. Tras bambalinas, el marco
+genera consultas SQL directamente a partir de nombres de métodos que deben seguir una convención de nomenclatura
+estricta. Para obtener más información sobre las palabras clave admitidas, puede
+[consultar la documentación](https://docs.spring.io/spring-data/r2dbc/docs/1.2.6/reference/html/#r2dbc.repositories.queries).
+
+Cuando su consulta es demasiado compleja para generarse con métodos de consulta, o cuando tiene que lidiar con
+relaciones, debe escribir la consulta usted mismo. Lamentablemente, `JPQL` no es compatible y debemos escribir
+consultas `SQL` simples. Esto tiene un impacto directo en el esfuerzo de codificación y en la capacidad
+de mantenimiento.
+
+````java
+public interface TagRepository extends R2dbcRepository<Tag, Long> {
+    @Query("""
+            SELECT t.id, t.name, t.version, t.created_date, t.last_modified_date
+            FROM tags AS t
+            	INNER JOIN items_tags AS it ON(t.id = it.tag_id)
+            WHERE it.item_id = :itemId
+            ORDER BY t.name;
+            """)
+    Flux<Tag> findTagsByItemId(Long itemId);
+}
+````
