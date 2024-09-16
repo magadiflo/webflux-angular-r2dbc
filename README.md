@@ -434,8 +434,9 @@ nomenclatura propia, es decir `<migration_number>_<what_does_this_migration_do>.
 El `changeSet` que crearemos con esta migración será crear la tabla `persons` en la base de datos. Para eso, tomando
 como referencia nuestra entidad `Person`, agregamos las configuraciones necesarias para crear la tabla.
 
+El archivo changeLog que crearemos para esta migración se llamará `1_create_persons_table.yml`.
+
 ````yml
-# src/main/resources/db/changelog/1_create_persons_table.yml
 databaseChangeLog:
   - changeSet:
       id: 1_create_persons_table
@@ -548,7 +549,7 @@ asegurando que todos los cambios se apliquen de manera correcta y en el orden ad
 ## Crea tabla items y relaciona con persons
 
 Basándonos en la entidad `Item` crearemos la tabla `items` y al final estableceremos la relación de clave foránea con
-la tabla `persons`.
+la tabla `persons`. El archivo `changeLog` que crearemos se llamará `2_create_items_table.yml`.
 
 ````yml
 databaseChangeLog:
@@ -602,7 +603,58 @@ databaseChangeLog:
                     references: persons(id)
 ````
 
-Ejecutamos la aplicación y vemos que la migración se efectúa creándose nuestra tabla `items` y su relación co la tabla
+Ejecutamos la aplicación y vemos que la migración se efectúa creándose nuestra tabla `items` y su relación con la tabla
 `persons`.
 
 ![04.png](assets/04.png)
+
+## Crea tabla tags
+
+Creamos el archivo `changeLog` para crear la tabla de la entidad `Tag`. Este archivo lo llamaremos
+`3_create_tags_table.yml`.
+
+````yml
+databaseChangeLog:
+  - changeSet:
+      id: 3_create_tags_table
+      author: Martín
+      changes:
+        - createTable:
+            tableName: tags
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: BIGINT
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_modified_date
+                  type: TIMESTAMP
+                  defaultValueComputed: CURRENT_TIMESTAMP
+                  constraints:
+                    nullable: false
+````
+
+Si ejecutamos la aplicación veremos que la migración se efectúa sin problemas creándonos la tabla `tags`.
+
+![05.png](assets/05.png)
+
