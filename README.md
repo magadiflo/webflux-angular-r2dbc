@@ -329,7 +329,7 @@ public class Tag {
 @Builder
 @Setter
 @Getter
-@Table(name = "item_tags")
+@Table(name = "items_tags")
 public class ItemTag {
     @Id
     private Long id;
@@ -658,3 +658,62 @@ Si ejecutamos la aplicación veremos que la migración se efectúa sin problemas
 
 ![05.png](assets/05.png)
 
+## Crea tabla items_tags y sus relaciones
+
+Crearemos la tabla `items_tags` y la relacionaremos con las tablas `items` y `tags`. El `changeLog` que crearemos se
+llamará `4_create_items_tags_table.yml`.
+
+````yml
+databaseChangeLog:
+  - changeSet:
+      id: 4_create_items_tags_table
+      author: Martín
+      changes:
+        - createTable:
+            tableName: items_tags
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: item_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_items_tags_item_id
+                    references: items(id)
+              - column:
+                  name: tag_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_items_tags_tag_id
+                    references: tags(id)
+````
+
+Luego de ejecutar la aplicación veremos que la migración se ha efectuado correctamente. A continuación se mostrarán
+todas las tablas que hasta el momento tenemos en la base de datos.
+
+![06.png](assets/06.png)
+
+Como observamos tenemos las 4 tablas de nuestro dominio relacionadas correctamente. Además, observamos las dos tablas
+que `Liquibase` nos genera en automático.
+
+Si hacemos un `SELECT` de la tabla `databasechangelog` veremos que `Liquibase` ha registrado nuestras migraciones, eso
+es importante, dado que de esa manera lleva el control de los cambios que hacemos en la base de datos.
+
+````bash
+$ db_webflux_angular_r2dbc=# SELECT * FROM databasechangelog;
+
+            id             | author |                  filename                  |        dateexecuted        | orderexecuted | exectype |               md5sum               |           description            | comments | tag | liquibase | contexts | labels | deployment_id
+---------------------------+--------+--------------------------------------------+----------------------------+---------------+----------+------------------------------------+----------------------------------+----------+-----+-----------+----------+--------+---------------
+ 1_create_persons_table    | Martín | db/changelog/1_create_persons_table.yml    | 2024-09-15 14:16:09.921728 |             1 | EXECUTED | 9:6de9705917e16903b7d9ff005d4985c6 | createTable tableName=persons    |          |     | 4.27.0    |          |        | 6427769827
+ 2_create_items_table      | Martín | db/changelog/2_create_items_table.yml      | 2024-09-15 14:16:09.988928 |             2 | EXECUTED | 9:08cd011bcaca945d833b8484d11928b6 | createTable tableName=items      |          |     | 4.27.0    |          |        | 6427769827
+ 3_create_tags_table       | Martín | db/changelog/3_create_tags_table.yml       | 2024-09-15 22:11:41.728285 |             3 | EXECUTED | 9:ab6bdcd1343360e426930955ad14ce59 | createTable tableName=tags       |          |     | 4.27.0    |          |        | 6456301611
+ 4_create_items_tags_table | Martín | db/changelog/4_create_items_tags_table.yml | 2024-09-15 22:36:03.182652 |             4 | EXECUTED | 9:c435311578c16b8ca7b3a891d15d6dd2 | createTable tableName=items_tags |          |     | 4.27.0    |          |        | 6457763088
+(4 rows)
+````

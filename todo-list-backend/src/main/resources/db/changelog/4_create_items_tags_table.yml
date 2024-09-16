@@ -1,0 +1,29 @@
+databaseChangeLog:
+  - changeSet:
+      id: 4_create_items_tags_table
+      author: Martín
+      changes:
+        - createTable:
+            tableName: items_tags
+            columns:
+              - column:
+                  name: id
+                  type: BIGINT
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: item_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_items_tags_item_id
+                    references: items(id)
+              - column:
+                  name: tag_id
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_items_tags_tag_id
+                    references: tags(id)
