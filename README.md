@@ -601,3 +601,8 @@ databaseChangeLog:
                     foreignKeyName: fk_items_assignee_id
                     references: persons(id)
 ````
+
+Ejecutamos la aplicación y vemos que la migración se efectúa creándose nuestra tabla `items` y su relación co la tabla
+`persons`.
+
+![04.png](assets/04.png)
