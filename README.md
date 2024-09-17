@@ -954,3 +954,120 @@ public class TagResource {
     private String name;
 }
 ````
+
+## Creando los Mappers
+
+Vamos a crear nuestras interfaces y clases mapeadoras usando `MapStruct`.
+
+````java
+
+@Mapper(componentModel = "spring")
+public interface PersonMapper {
+    PersonResource toPersonResource(Person person);
+}
+````
+
+````java
+
+@Mapper(componentModel = "spring")
+public interface TagMapper {
+
+    TagResource toTagResource(Tag tag);
+
+    default List<Tag> toTags(Collection<Long> tagsId) {
+        if (tagsId == null) return new ArrayList<>();
+
+        return tagsId.stream()
+                .map(tagId -> Tag.builder().id(tagId).build())
+                .collect(Collectors.toList());
+    }
+
+    default Collection<Long> extractTagIdsFromTags(Collection<Tag> tags) {
+        if (tags == null) return new LinkedHashSet<>();
+
+        return tags.stream()
+                .map(Tag::getId)
+                .collect(Collectors.toSet());
+    }
+
+    default Collection<Long> extractTagIdsFromItemTags(Collection<ItemTag> itemTags) {
+        if (itemTags == null) return new LinkedHashSet<>();
+
+        return itemTags.stream()
+                .map(ItemTag::getTagId)
+                .collect(Collectors.toSet());
+    }
+
+    default Collection<ItemTag> toItemTags(Long itemId, Collection<Tag> tags) {
+        if (tags == null) return new LinkedHashSet<>();
+
+        return tags.stream()
+                .map(tag -> ItemTag.builder()
+                        .itemId(itemId)
+                        .tagId(tag.getId())
+                        .build())
+                .collect(Collectors.toSet());
+    }
+
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@Mapper(componentModel = "spring", uses = {PersonMapper.class, TagMapper.class})
+public abstract class ItemMapper {
+
+    private final TagMapper tagMapper;
+
+    public abstract ItemResource toItemResource(Item item);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "tags", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "createdDate", ignore = true)
+    @Mapping(target = "lastModifiedDate", ignore = true)
+    public abstract Item toItem(NewItemResource itemResource);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "assignee", ignore = true)
+    @Mapping(target = "tags", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "createdDate", ignore = true)
+    @Mapping(target = "lastModifiedDate", ignore = true)
+    public abstract Item update(ItemUpdateResource itemUpdateResource, @MappingTarget Item item);
+
+    @AfterMapping
+    public void afterMapping(NewItemResource itemResource, @MappingTarget Item item) {
+        item.setTags(this.tagMapper.toTags(itemResource.getTagIds()));
+    }
+
+    @AfterMapping
+    public void afterMapping(ItemUpdateResource itemResource, @MappingTarget Item item) {
+        item.setTags(tagMapper.toTags(itemResource.getTagIds()));
+    }
+
+    public Item patch(ItemPatchResource patchResource, Item item) {
+        if (patchResource.getDescription() != null) {
+            item.setDescription(patchResource.getDescription());
+        }
+
+        if (patchResource.getStatus() != null) {
+            item.setStatus(patchResource.getStatus());
+        }
+
+        if (patchResource.getAssigneeId() != null) {
+            item.setAssigneeId(patchResource.getAssigneeId());
+        }
+
+        if (patchResource.getTagIds() != null) {
+            item.setTags(this.tagMapper.toTags(patchResource.getTagIds()));
+        }
+
+        return item;
+    }
+
+}
+````
