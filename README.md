@@ -843,3 +843,114 @@ public interface TagRepository extends R2dbcRepository<Tag, Long> {
     Flux<Tag> findTagsByItemId(Long itemId);
 }
 ````
+
+## Creación de DTOs
+
+A continuación se muestran los distintos DTOs que se usarán en esta aplicación.
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class NewItemResource {
+    @NotBlank
+    @Size(max = 4000)
+    private String description; //obligatorio
+    private Long assigneeId;    //opcional
+    private Set<Long> tagIds;   //opcional
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class ItemUpdateResource {
+    @NotBlank
+    @Size(max = 4000)
+    private String description;
+    @NotNull
+    private ItemStatus status;
+    private Long assigneeId;
+    private Set<Long> tagIds;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class ItemPatchResource {
+    @NotBlank
+    @Size(max = 4000)
+    private String description;
+    @NotNull
+    private ItemStatus status;
+    private Long assigneeId;
+    private Set<Long> tagIds;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class PersonResource {
+    private Long id;
+    private String firstName;
+    private String lastName;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class ItemResource {
+    private Long id;
+    private String description;
+    private ItemStatus status;
+
+    private PersonResource assignee;
+    private List<TagResource> tags;
+
+    private Long version;
+
+    private LocalDateTime createdDate;
+    private LocalDateTime lastModifiedDate;
+}
+````
+
+````java
+
+@ToString
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+@Setter
+@Getter
+public class TagResource {
+    private Long id;
+    private String name;
+}
+````
