@@ -4,6 +4,7 @@ import dev.magadiflo.app.model.dto.TagResource;
 import dev.magadiflo.app.model.entity.ItemTag;
 import dev.magadiflo.app.model.entity.Tag;
 import org.mapstruct.Mapper;
+import org.mapstruct.MappingConstants;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -11,7 +12,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface TagMapper {
 
     TagResource toTagResource(Tag tag);

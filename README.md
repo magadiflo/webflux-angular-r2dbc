@@ -961,15 +961,24 @@ Vamos a crear nuestras interfaces y clases mapeadoras usando `MapStruct`.
 
 ````java
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface PersonMapper {
     PersonResource toPersonResource(Person person);
 }
 ````
 
+`@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)`, recordemos que esta anotación marca una interfaz
+o clase abstracta como un mapper y activa la generación de una implementación de ese tipo a través de `MapStruct`.
+En otras palabras, esta anotación indica que esta interfaz es un mapper de `MapStruct` y que el componente generado
+será un `bean de Spring`. Esto permite que `Spring` gestione la instancia del mapper.
+
+`MappingConstants.ComponentModel.SPRING`, cuyo valor es `spring`, indica que el mapeador generado es un bean de
+Spring y se puede recuperar a través de `@Autowired` o cualquier otro mecanismo de inyección de dependencias de Spring,
+como constructor injection o setter injection.
+
 ````java
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING)
 public interface TagMapper {
 
     TagResource toTagResource(Tag tag);
@@ -1008,17 +1017,16 @@ public interface TagMapper {
                         .build())
                 .collect(Collectors.toSet());
     }
-
 }
 ````
 
 ````java
 
-@RequiredArgsConstructor
-@Mapper(componentModel = "spring", uses = {PersonMapper.class, TagMapper.class})
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {PersonMapper.class, TagMapper.class})
 public abstract class ItemMapper {
 
-    private final TagMapper tagMapper;
+    @Autowired
+    private TagMapper tagMapper;
 
     public abstract ItemResource toItemResource(Item item);
 
@@ -1071,3 +1079,45 @@ public abstract class ItemMapper {
 
 }
 ````
+
+> En el código anterior es importante hacer uso de la anotación `@Autowired` para inyectar el mapper `TagMapper` en
+> nuestra clase abstracta. Inicialmente, había usado el `@RequiredArgsConstructor` con la propiedad
+> `private final TagMapper tagMapper;` y cuando levantaba la aplicación fallaba al compilar.
+
+Observamos también que estamos usando la anotación de `@Mapper` de `MapStruct` en una clase abstracta y
+además estamos usando el atributo `uses`. Veamos con más detalle este atributo.
+
+`@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {PersonMapper.class, TagMapper.class})`, esta
+anotación usa el atributo `uses` para especificar otras clases mapeadoras que el `ItemMapper` puede necesitar para
+realizar sus conversiones. En nuestro caso, `ItemMapper` utiliza `PersonMapper` y `TagMapper` para mapear objetos
+relacionados. Esto es útil cuando tienes mapeos complejos que dependen de otros mapeos.
+
+Cuando especificas otros mapeadores en el atributo uses de la anotación `@Mapper`, `MapStruct` los utiliza
+automáticamente para mapear las propiedades correspondientes.
+
+En nuestro ejemplo, hemos definido el siguiente método de mapeo en nuestra clase abstracta `ItemMapper`.
+
+````java
+public abstract ItemResource toItemResource(Item item);
+````
+
+Se va a realizar una conversión de `Item` a `ItemResource`. Ahora, si nos fijamos en `Item`, este tiene un atributo
+interno llamado `Person assignee` y si observamos la clase destino `ItemResource` tiene un atributo
+`PersonResource assignee`, entonces, es necesario definir el atributo `uses` con el mapeador `PersonMapper` para que
+los atributos `assignee` puedan mapearse, esto debido a que el `PersonMapper` ya tiene un método que realiza dicho
+mapeo `PersonResource toPersonResource(Person person);`. Lo mismo ocurre con el `TagMapper` que que agregamos al
+atributo `uses`.
+
+En resumen, `MapStruct` se encarga de la complejidad de las conversiones anidadas.
+
+Otra anotación que usamos en los métodos es el `@MappingTarget`. Esta anotación declara un parámetro de un método de
+mapeo como el objetivo del mapeo.
+
+La anotación `@AfterMapping`  en `MapStruct` se utiliza para ejecutar lógica adicional después de que se haya realizado
+el mapeo principal. Es útil cuando necesitas realizar alguna operación adicional que no puede ser manejada directamente
+por las anotaciones de mapeo estándar.
+
+En nuestro caso, estamos anotando con `@AfterMapping` varios métodos por defecto, uno de ellos es el método
+`afterMapping()`. Este método se ejecuta después de que `MapStruct` haya mapeado `NewItemResource` a `Item`. En otras
+palabras, cuando el método `toItem()` haya completado el mapeo principal, se ejecutará el método por defecto
+`afterMapping()` correspondiente a la conversión de `NewItemResource` e `Item`.

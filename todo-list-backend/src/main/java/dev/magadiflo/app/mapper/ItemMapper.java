@@ -5,17 +5,14 @@ import dev.magadiflo.app.model.dto.ItemResource;
 import dev.magadiflo.app.model.dto.ItemUpdateResource;
 import dev.magadiflo.app.model.dto.NewItemResource;
 import dev.magadiflo.app.model.entity.Item;
-import lombok.RequiredArgsConstructor;
-import org.mapstruct.AfterMapping;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import org.mapstruct.MappingTarget;
+import org.mapstruct.*;
+import org.springframework.beans.factory.annotation.Autowired;
 
-@RequiredArgsConstructor
-@Mapper(componentModel = "spring", uses = {PersonMapper.class, TagMapper.class})
+@Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {PersonMapper.class, TagMapper.class})
 public abstract class ItemMapper {
 
-    private final TagMapper tagMapper;
+    @Autowired
+    private TagMapper tagMapper;
 
     public abstract ItemResource toItemResource(Item item);
 
