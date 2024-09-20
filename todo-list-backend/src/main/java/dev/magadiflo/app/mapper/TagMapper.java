@@ -22,7 +22,7 @@ public interface TagMapper {
 
         return tagsId.stream()
                 .map(tagId -> Tag.builder().id(tagId).build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     default Collection<Long> extractTagIdsFromTags(Collection<Tag> tags) {

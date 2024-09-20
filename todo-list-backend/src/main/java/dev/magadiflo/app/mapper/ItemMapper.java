@@ -7,12 +7,17 @@ import dev.magadiflo.app.model.dto.NewItemResource;
 import dev.magadiflo.app.model.entity.Item;
 import org.mapstruct.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {PersonMapper.class, TagMapper.class})
 public abstract class ItemMapper {
 
-    @Autowired
     private TagMapper tagMapper;
+
+    @Autowired
+    public void setTagMapper(@Lazy TagMapper tagMapper) {
+        this.tagMapper = tagMapper;
+    }
 
     public abstract ItemResource toItemResource(Item item);
 

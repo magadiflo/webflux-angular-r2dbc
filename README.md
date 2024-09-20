@@ -815,7 +815,7 @@ public interface ItemRepository extends R2dbcRepository<Item, Long> {
 
 ````java
 public interface ItemTagRepository extends R2dbcRepository<ItemTag, Long> {
-    Flux<ItemTag> findAllByItemId();
+    Flux<ItemTag> findAllByItemId(Long itemId);
 
     Mono<Integer> deleteAllByItemId(Long itemId);
 }
@@ -836,9 +836,9 @@ public interface TagRepository extends R2dbcRepository<Tag, Long> {
     @Query("""
             SELECT t.id, t.name, t.version, t.created_date, t.last_modified_date
             FROM tags AS t
-            	INNER JOIN items_tags AS it ON(t.id = it.tag_id)
+                INNER JOIN items_tags AS it ON(t.id = it.tag_id)
             WHERE it.item_id = :itemId
-            ORDER BY t.name;
+            ORDER BY t.name
             """)
     Flux<Tag> findTagsByItemId(Long itemId);
 }
@@ -988,7 +988,7 @@ public interface TagMapper {
 
         return tagsId.stream()
                 .map(tagId -> Tag.builder().id(tagId).build())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     default Collection<Long> extractTagIdsFromTags(Collection<Tag> tags) {
@@ -1025,8 +1025,12 @@ public interface TagMapper {
 @Mapper(componentModel = MappingConstants.ComponentModel.SPRING, uses = {PersonMapper.class, TagMapper.class})
 public abstract class ItemMapper {
 
-    @Autowired
     private TagMapper tagMapper;
+
+    @Autowired
+    public void setTagMapper(@Lazy TagMapper tagMapper) {
+        this.tagMapper = tagMapper;
+    }
 
     public abstract ItemResource toItemResource(Item item);
 
@@ -1082,7 +1086,19 @@ public abstract class ItemMapper {
 
 > En el código anterior es importante hacer uso de la anotación `@Autowired` para inyectar el mapper `TagMapper` en
 > nuestra clase abstracta. Inicialmente, había usado el `@RequiredArgsConstructor` con la propiedad
-> `private final TagMapper tagMapper;` y cuando levantaba la aplicación fallaba al compilar.
+> `private final TagMapper tagMapper;` y cuando levantaba la aplicación fallaba al compilar, dado que es una clase
+> abstracta el que estamos usando y si colocamos `final` nos pedirá que inyectemos por constructor la dependencia.
+
+Notar que estamos haciendo uso de la inyección de dependencia vía parámetro del método con el uso de la anotación
+`@Autowired`, lo hacemos de esta manera para evitar que `SonarLint` del `IntelliJ IDEA` nos marque un `warning` cuando
+lo inyectamos vía campo de la clase, de esta manera: `@Autowired private TagMapper tagMapper`. Lo que `SonarLint` nos
+dice es que debemos evitar hacer uso del `@Autowired` en los campos de la clase para inyección de dependencia y que en
+vez de eso usemos la inyección vía constructor. Pero como estamos en una clase abstracta, no se puede realizar ese
+tipo de inyección de dependencia. Así que otra forma es haciendo la inyección de dependencia vía parámetro del método.
+Notar que además, estamos haciendo uso de la anotación `@Lazy`. Con la anotación `@Lazy`, la inyección de `TagMapper`
+se realizará solo cuando se necesite, es decir, cuando se llame a un método que utilice `tagMapper`, como
+`afterMapping()`. Esto significa que `TagMapper` no se inicializará hasta que realmente se utilice en el código,
+evitando posibles problemas de dependencias circulares.
 
 Observamos también que estamos usando la anotación de `@Mapper` de `MapStruct` en una clase abstracta y
 además estamos usando el atributo `uses`. Veamos con más detalle este atributo.
