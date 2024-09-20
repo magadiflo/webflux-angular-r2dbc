@@ -1137,3 +1137,93 @@ En nuestro caso, estamos anotando con `@AfterMapping` varios métodos por defect
 `afterMapping()`. Este método se ejecuta después de que `MapStruct` haya mapeado `NewItemResource` a `Item`. En otras
 palabras, cuando el método `toItem()` haya completado el mapeo principal, se ejecutará el método por defecto
 `afterMapping()` correspondiente a la conversión de `NewItemResource` e `Item`.
+
+## Crea excepciones personalizadas
+
+Vamos a crear las siguientes excepciones personalizadas que usaremos en el proyecto.
+
+````java
+public class NotFoundException extends RuntimeException {
+    public NotFoundException(String message) {
+        super(message);
+    }
+}
+````
+
+````java
+public class PersonNotFoundException extends NotFoundException {
+    public PersonNotFoundException(Long personId) {
+        super("No se encuentra el person [%d]".formatted(personId));
+    }
+}
+````
+
+````java
+public class ItemNotFoundException extends NotFoundException {
+    public ItemNotFoundException(Long itemId) {
+        super("No se encuentra el item [%d]".formatted(itemId));
+    }
+}
+````
+
+````java
+public class TagNotFoundException extends NotFoundException {
+    public TagNotFoundException(Long tagId) {
+        super("No se encuentra el tag [%d]".formatted(tagId));
+    }
+}
+````
+
+````java
+public class UnexpectedItemVersionException extends RuntimeException {
+    public UnexpectedItemVersionException(Long expectedVersion, Long foundVersion) {
+        super("El item tiene una versión diferente a la esperada. Se esperaba [%d], se encontró [%d]".formatted(expectedVersion, foundVersion));
+    }
+}
+````
+
+## Maneja excepciones
+
+Vamos a crear una clase que nos permita personalizar el envío de errores o mensajes al cliente.
+
+````java
+
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Getter
+@Setter
+public class ResponseMessage<T> {
+    private String message;
+
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private T content;
+}
+````
+
+Ahora procedemos a crear el controlador que manejará las excepciones producidas en nuestra aplicación. Aquí hacemos
+uso de las excepciones personalizadas que creamos anteriormente y de la clase para enviar mensaje o error al cliente.
+
+````java
+
+@RestControllerAdvice
+public class GlobalExceptionHandler {
+    @ExceptionHandler({
+            ItemNotFoundException.class,
+            PersonNotFoundException.class,
+            TagNotFoundException.class
+    })
+    public Mono<ResponseEntity<ResponseMessage<Void>>> handle(NotFoundException exception) {
+        return Mono.just(ResponseEntity
+                .status(HttpStatus.NOT_FOUND)
+                .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
+    }
+
+    @ExceptionHandler(UnexpectedItemVersionException.class)
+    public Mono<ResponseEntity<ResponseMessage<Void>>> handle(UnexpectedItemVersionException exception) {
+        return Mono.just(ResponseEntity
+                .status(HttpStatus.PRECONDITION_FAILED)
+                .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
+    }
+}
+````
