@@ -41,13 +41,13 @@ public interface TagMapper {
                 .collect(Collectors.toSet());
     }
 
-    default Collection<ItemTag> toItemTags(Long itemId, Collection<Tag> tags) {
-        if (tags == null) return new LinkedHashSet<>();
+    default Collection<ItemTag> toItemTags(Long itemId, Collection<Long> tagIds) {
+        if (tagIds == null) return new LinkedHashSet<>();
 
-        return tags.stream()
-                .map(tag -> ItemTag.builder()
+        return tagIds.stream()
+                .map(tagId -> ItemTag.builder()
                         .itemId(itemId)
-                        .tagId(tag.getId())
+                        .tagId(tagId)
                         .build())
                 .collect(Collectors.toSet());
     }

@@ -1007,13 +1007,13 @@ public interface TagMapper {
                 .collect(Collectors.toSet());
     }
 
-    default Collection<ItemTag> toItemTags(Long itemId, Collection<Tag> tags) {
-        if (tags == null) return new LinkedHashSet<>();
+    default Collection<ItemTag> toItemTags(Long itemId, Collection<Long> tagIds) {
+        if (tagIds == null) return new LinkedHashSet<>();
 
-        return tags.stream()
-                .map(tag -> ItemTag.builder()
+        return tagIds.stream()
+                .map(tagId -> ItemTag.builder()
                         .itemId(itemId)
-                        .tagId(tag.getId())
+                        .tagId(tagId)
                         .build())
                 .collect(Collectors.toSet());
     }
@@ -1182,6 +1182,14 @@ public class UnexpectedItemVersionException extends RuntimeException {
 }
 ````
 
+````java
+public class VersionNotProvidedException extends RuntimeException {
+    public VersionNotProvidedException() {
+        super("Al actualizar un item, se deben proporcionar la versión");
+    }
+}
+````
+
 ## Maneja excepciones
 
 Vamos a crear una clase que nos permita personalizar el envío de errores o mensajes al cliente.
@@ -1224,6 +1232,217 @@ public class GlobalExceptionHandler {
         return Mono.just(ResponseEntity
                 .status(HttpStatus.PRECONDITION_FAILED)
                 .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
+    }
+
+    @ExceptionHandler(VersionNotProvidedException.class)
+    public Mono<ResponseEntity<ResponseMessage<Void>>> handle(VersionNotProvidedException exception) {
+        return Mono.just(ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
+    }
+}
+````
+
+## Creando clases de servicio
+
+````java
+public interface ItemService {
+    Flux<ItemResource> findAllItems();
+
+    Mono<ItemResource> findItemById(Long itemId, boolean loadRelations);
+
+    Mono<ItemResource> createItem(NewItemResource newItemResource);
+
+    Mono<ItemResource> updateItem(Long itemId, ItemUpdateResource itemUpdateResource, Long version);
+
+    Mono<Void> deleteItemById(Long itemId, Long version);
+}
+````
+
+````java
+public interface PersonService {
+    Flux<PersonResource> findAllPersons();
+
+    Mono<PersonResource> findPersonById(Long personId);
+}
+````
+
+````java
+public interface TagService {
+    Flux<TagResource> findAllTags();
+
+    Mono<TagResource> findTagById(Long tagId);
+}
+````
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+@Transactional(readOnly = true)
+public class ItemServiceImpl implements ItemService {
+
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.by("last_modified_date"));
+
+    private final PersonRepository personRepository;
+    private final ItemRepository itemRepository;
+    private final TagRepository tagRepository;
+    private final ItemTagRepository itemTagRepository;
+    private final ItemMapper itemMapper;
+    private final TagMapper tagMapper;
+
+
+    @Override
+    public Flux<ItemResource> findAllItems() {
+        return this.itemRepository.findAll(DEFAULT_SORT)
+                .flatMap(this::loadRelations)
+                .map(this.itemMapper::toItemResource);
+    }
+
+    @Override
+    public Mono<ItemResource> findItemById(Long itemId, boolean loadRelations) {
+        Mono<Item> itemDB = this.findAndItemById(itemId, null);
+        return loadRelations ?
+                itemDB.flatMap(this::loadRelations).map(this.itemMapper::toItemResource) :
+                itemDB.map(this.itemMapper::toItemResource);
+    }
+
+    @Override
+    @Transactional
+    public Mono<ItemResource> createItem(NewItemResource newItemResource) {
+        return this.itemRepository.save(this.itemMapper.toItem(newItemResource))
+                .flatMap(itemDB -> {
+                    Collection<ItemTag> itemTags = this.tagMapper.toItemTags(itemDB.getId(), newItemResource.getTagIds());
+                    return this.itemTagRepository
+                            .saveAll(itemTags)
+                            .collectList()
+                            .thenReturn(this.itemMapper.toItemResource(itemDB));
+                });
+    }
+
+    @Override
+    @Transactional
+    public Mono<ItemResource> updateItem(Long itemId, ItemUpdateResource itemUpdateResource, Long version) {
+        if (version == null) {
+            return Mono.error(new VersionNotProvidedException());
+        }
+        return this.findAndItemById(itemId, version)
+                .flatMap(itemDB -> this.itemTagRepository.findAllByItemId(itemDB.getId()).collectList()
+                        .flatMap(currentItemTags -> {
+                            Collection<Long> existingTagIds = this.tagMapper.extractTagIdsFromItemTags(currentItemTags);
+                            Collection<Long> tagIdsToSave = itemUpdateResource.getTagIds();
+
+                            // Item Tags a ser eliminados
+                            Collection<ItemTag> removedItemTags = currentItemTags.stream()
+                                    .filter(itemTag -> !tagIdsToSave.contains(itemTag.getTagId()))
+                                    .toList();
+
+                            // Item Tags a ser insertados
+                            Collection<ItemTag> addedItemTags = tagIdsToSave.stream()
+                                    .filter(tagId -> !existingTagIds.contains(tagId))
+                                    .map(tagId -> ItemTag.builder().itemId(itemId).tagId(tagId).build())
+                                    .toList();
+
+                            return this.itemTagRepository.deleteAll(removedItemTags)
+                                    .then(this.itemTagRepository.saveAll(addedItemTags).collectList())
+                                    .thenReturn(itemDB);
+                        })
+                )
+                .flatMap(itemDB -> this.itemRepository.save(this.itemMapper.update(itemUpdateResource, itemDB)))
+                .flatMap(this::loadRelations)
+                .map(this.itemMapper::toItemResource);
+    }
+
+    @Override
+    @Transactional
+    public Mono<Void> deleteItemById(Long itemId, Long version) {
+        return this.findAndItemById(itemId, version)
+                .zipWith(this.itemTagRepository.deleteAllByItemId(itemId), (itemDB, affectedRows) -> itemDB)
+                .flatMap(this.itemRepository::delete);
+    }
+
+    private Mono<Item> loadRelations(Item item) {
+        Mono<Item> itemMono = Mono.just(item)
+                .zipWith(this.tagRepository.findTagsByItemId(item.getId()).collectList(), (itemToReturn, tags) -> {
+                    itemToReturn.setTags(tags);
+                    return itemToReturn;
+                });
+        if (item.getAssigneeId() != null) {
+            itemMono = itemMono.zipWith(this.personRepository.findById(item.getAssigneeId()), (itemReturn, person) -> {
+                itemReturn.setAssignee(person);
+                return itemReturn;
+            });
+        }
+
+        return itemMono;
+    }
+
+    private Mono<Item> findAndItemById(Long itemId, Long expectedVersion) {
+        return this.itemRepository.findById(itemId)
+                .switchIfEmpty(Mono.error(new ItemNotFoundException(itemId)))
+                .handle((itemDB, itemSynchronousSink) -> {
+                    // Bloqueo optimista: comprobación previa
+                    if (expectedVersion != null && !expectedVersion.equals(itemDB.getVersion())) {
+                        itemSynchronousSink.error(new UnexpectedItemVersionException(expectedVersion, itemDB.getVersion()));
+                    } else {
+                        itemSynchronousSink.next(itemDB);
+                    }
+                });
+    }
+}
+````
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+@Transactional(readOnly = true)
+public class PersonServiceImpl implements PersonService {
+
+    // Los nombres de los campos por lo que se ordenarán son los nombres de los campos de la base de datos.
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.by("first_name"), Sort.Order.by("last_name"));
+
+    private final PersonRepository personRepository;
+    private final PersonMapper personMapper;
+
+    @Override
+    public Flux<PersonResource> findAllPersons() {
+        return this.personRepository.findAll(DEFAULT_SORT)
+                .map(this.personMapper::toPersonResource);
+    }
+
+    @Override
+    public Mono<PersonResource> findPersonById(Long personId) {
+        return this.personRepository.findById(personId)
+                .map(this.personMapper::toPersonResource);
+    }
+}
+````
+
+````java
+
+@Slf4j
+@RequiredArgsConstructor
+@Service
+@Transactional(readOnly = true)
+public class TagServiceImpl implements TagService {
+
+    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.by("name"));
+    private final TagRepository tagRepository;
+    private final TagMapper tagMapper;
+
+    @Override
+    public Flux<TagResource> findAllTags() {
+        return this.tagRepository.findAll()
+                .map(this.tagMapper::toTagResource);
+    }
+
+    @Override
+    public Mono<TagResource> findTagById(Long tagId) {
+        return this.tagRepository.findById(tagId)
+                .map(this.tagMapper::toTagResource);
     }
 }
 ````
