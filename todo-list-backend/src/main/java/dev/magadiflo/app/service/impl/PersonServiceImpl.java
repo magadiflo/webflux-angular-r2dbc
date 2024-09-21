@@ -1,5 +1,6 @@
 package dev.magadiflo.app.service.impl;
 
+import dev.magadiflo.app.exception.PersonNotFoundException;
 import dev.magadiflo.app.mapper.PersonMapper;
 import dev.magadiflo.app.model.dto.PersonResource;
 import dev.magadiflo.app.repository.PersonRepository;
@@ -33,6 +34,7 @@ public class PersonServiceImpl implements PersonService {
     @Override
     public Mono<PersonResource> findPersonById(Long personId) {
         return this.personRepository.findById(personId)
+                .switchIfEmpty(Mono.error(new PersonNotFoundException(personId)))
                 .map(this.personMapper::toPersonResource);
     }
 }

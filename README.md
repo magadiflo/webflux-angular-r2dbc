@@ -1416,6 +1416,7 @@ public class PersonServiceImpl implements PersonService {
     @Override
     public Mono<PersonResource> findPersonById(Long personId) {
         return this.personRepository.findById(personId)
+                .switchIfEmpty(Mono.error(new PersonNotFoundException(personId)))
                 .map(this.personMapper::toPersonResource);
     }
 }
@@ -1446,3 +1447,138 @@ public class TagServiceImpl implements TagService {
     }
 }
 ````
+
+## Controladores
+
+````java
+
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/persons")
+public class PersonController {
+
+    private final PersonService personService;
+
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Mono<ResponseEntity<Flux<PersonResource>>> findAllPersons() {
+        return Mono.just(ResponseEntity.ok(this.personService.findAllPersons()));
+    }
+
+    @GetMapping(path = "/{personId}")
+    public Mono<ResponseEntity<PersonResource>> findPerson(@PathVariable Long personId) {
+        return this.personService.findPersonById(personId)
+                .map(ResponseEntity::ok);
+    }
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/tags")
+public class TagController {
+
+    private final TagService tagService;
+
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Mono<ResponseEntity<Flux<TagResource>>> findAllTags() {
+        return Mono.just(ResponseEntity.ok(this.tagService.findAllTags()));
+    }
+
+    @GetMapping(path = "/{tagId}")
+    public Mono<ResponseEntity<TagResource>> findTag(@PathVariable Long tagId) {
+        return this.tagService.findTagById(tagId)
+                .map(ResponseEntity::ok);
+    }
+}
+````
+
+````java
+
+@RequiredArgsConstructor
+@RestController
+@RequestMapping(path = "/api/v1/items")
+public class ItemController {
+
+    private final ItemService itemService;
+
+    @GetMapping(produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Mono<ResponseEntity<Flux<ItemResource>>> findAllItems() {
+        return Mono.just(ResponseEntity.ok(this.itemService.findAllItems()));
+    }
+
+    @GetMapping(path = "/{itemId}")
+    public Mono<ResponseEntity<ItemResource>> findItem(@PathVariable Long itemId,
+                                                       @RequestParam(required = false, defaultValue = "false") Boolean loadRelations) {
+        return this.itemService.findItemById(itemId, loadRelations)
+                .map(ResponseEntity::ok);
+    }
+
+    @PostMapping
+    public Mono<ResponseEntity<ItemResource>> createItem(@Valid @RequestBody NewItemResource newItemResource) {
+        return this.itemService.createItem(newItemResource)
+                .map(itemResource -> new ResponseEntity<>(itemResource, HttpStatus.CREATED));
+    }
+
+    @PutMapping(path = "/{itemId}")
+    public Mono<ResponseEntity<ItemResource>> updateItem(@PathVariable Long itemId,
+                                                         @Valid @RequestBody ItemUpdateResource itemUpdateResource,
+                                                         @RequestHeader(value = HttpHeaders.IF_MATCH) Long version) {
+        return this.itemService.updateItem(itemId, itemUpdateResource, version)
+                .map(ResponseEntity::ok);
+    }
+
+    @DeleteMapping(path = "/{itemId}")
+    public Mono<ResponseEntity<Void>> deleteItem(@PathVariable Long itemId,
+                                                 @RequestHeader(value = HttpHeaders.IF_MATCH) Long version) {
+        return this.itemService.deleteItemById(itemId, version)
+                .thenReturn(ResponseEntity.noContent().build());
+    }
+}
+````
+
+## Comprueba funcionamiento de EndPoints
+
+### Person
+
+````bash
+$ curl -v http://localhost:8080/api/v1/persons
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/event-stream;charset=UTF-8
+<
+data:{"id":4,"firstName":"Fred","lastName":"Curay"}
+
+data:{"id":2,"firstName":"María","lastName":"Díaz"}
+
+data:{"id":3,"firstName":"Vanessa","lastName":"Bello"}
+
+data:{"id":1,"firstName":"Yumixsa","lastName":"Ramos"}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/persons/2 | jq
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "firstName": "María",
+  "lastName": "Díaz"
+}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/persons/20 | jq
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: application/json
+<
+{
+  "message": "No se encuentra el person [20]"
+}
+````
+
+### Tag
