@@ -27,11 +27,4 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.PRECONDITION_FAILED)
                 .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
     }
-
-    @ExceptionHandler(VersionNotProvidedException.class)
-    public Mono<ResponseEntity<ResponseMessage<Void>>> handle(VersionNotProvidedException exception) {
-        return Mono.just(ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
-    }
 }

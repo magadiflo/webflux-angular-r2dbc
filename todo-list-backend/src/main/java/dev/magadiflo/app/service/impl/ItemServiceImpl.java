@@ -2,7 +2,6 @@ package dev.magadiflo.app.service.impl;
 
 import dev.magadiflo.app.exception.ItemNotFoundException;
 import dev.magadiflo.app.exception.UnexpectedItemVersionException;
-import dev.magadiflo.app.exception.VersionNotProvidedException;
 import dev.magadiflo.app.mapper.ItemMapper;
 import dev.magadiflo.app.mapper.TagMapper;
 import dev.magadiflo.app.model.dto.ItemResource;
@@ -74,9 +73,6 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public Mono<ItemResource> updateItem(Long itemId, ItemUpdateResource itemUpdateResource, Long version) {
-        if (version == null) {
-            return Mono.error(new VersionNotProvidedException());
-        }
         return this.findAndItemById(itemId, version)
                 .flatMap(itemDB -> this.itemTagRepository.findAllByItemId(itemDB.getId()).collectList()
                         .flatMap(currentItemTags -> {

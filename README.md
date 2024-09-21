@@ -1182,14 +1182,6 @@ public class UnexpectedItemVersionException extends RuntimeException {
 }
 ````
 
-````java
-public class VersionNotProvidedException extends RuntimeException {
-    public VersionNotProvidedException() {
-        super("Al actualizar un item, se deben proporcionar la versión");
-    }
-}
-````
-
 ## Maneja excepciones
 
 Vamos a crear una clase que nos permita personalizar el envío de errores o mensajes al cliente.
@@ -1231,13 +1223,6 @@ public class GlobalExceptionHandler {
     public Mono<ResponseEntity<ResponseMessage<Void>>> handle(UnexpectedItemVersionException exception) {
         return Mono.just(ResponseEntity
                 .status(HttpStatus.PRECONDITION_FAILED)
-                .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
-    }
-
-    @ExceptionHandler(VersionNotProvidedException.class)
-    public Mono<ResponseEntity<ResponseMessage<Void>>> handle(VersionNotProvidedException exception) {
-        return Mono.just(ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
                 .body(ResponseMessage.<Void>builder().message(exception.getMessage()).build()));
     }
 }
@@ -1733,4 +1718,66 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"description\": \"Re
   "lastModifiedDate": "2024-09-20T20:20:44.1123982"
 }
 ````
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"description\": \"Despliega app en Azure\", \"assigneeId\": 1}" http://localhost:8080/api/v1/items | jq
+>
+< HTTP/1.1 201 Created
+< Content-Type: application/json
+<
+{
+  "id": 35,
+  "description": "Despliega app en Azure",
+  "status": "TO_DO",
+  "assignee": {
+    "id": 1,
+    "firstName": "Yumixsa",
+    "lastName": "Ramos"
+  },
+  "tags": [],
+  "version": 0,
+  "createdDate": "2024-09-20T23:07:00.0781386",
+  "lastModifiedDate": "2024-09-20T23:07:00.0781386"
+}
+````
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"description\": \"Organiza Product Backlog\", \"assigneeId\": 1, \"tagIds\": [1,2,3]}" http://localhost:8080/api/v1/items | jq
+>
+< HTTP/1.1 201 Created
+< Content-Type: application/json
+<
+{
+  "id": 36,
+  "description": "Organiza Product Backlog",
+  "status": "TO_DO",
+  "assignee": {
+    "id": 1,
+    "firstName": "Yumixsa",
+    "lastName": "Ramos"
+  },
+  "tags": [
+    {
+      "id": 3,
+      "name": "Meeting"
+    },
+    {
+      "id": 2,
+      "name": "Private"
+    },
+    {
+      "id": 1,
+      "name": "Work"
+    }
+  ],
+  "version": 0,
+  "createdDate": "2024-09-20T23:08:16.1090585",
+  "lastModifiedDate": "2024-09-20T23:08:16.1090585"
+}
+````
+
+````bash
+$ 
+````
+
 
