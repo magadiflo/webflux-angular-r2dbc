@@ -1777,7 +1777,67 @@ $ curl -v -X POST -H "Content-Type: application/json" -d "{\"description\": \"Or
 ````
 
 ````bash
-$ 
+$ curl -v -X PUT -H "Content-Type: application/json" -H "If-Match: 0" -d "{\"description\": \"Realizar Unit Test\", \"status\": \"TO_DO\", \"assigneeId\": 1, \"tagIds\": [1,3]}" http://localhost:8080/api/v1/items/34 | jq
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+<
+{
+  "id": 34,
+  "description": "Realizar Unit Test",
+  "status": "TO_DO",
+  "assignee": {
+    "id": 1,
+    "firstName": "Yumixsa",
+    "lastName": "Ramos"
+  },
+  "tags": [
+    {
+      "id": 3,
+      "name": "Meeting"
+    },
+    {
+      "id": 1,
+      "name": "Work"
+    }
+  ],
+  "version": 1,
+  "createdDate": "2024-09-20T23:05:51.471411",
+  "lastModifiedDate": "2024-09-20T23:18:25.9894853"
+}
+````
+
+Tratamos de actualizar un registro con una versión antigua. Recordemos que actualmente el item con id `34` tiene el
+valor de la versión en `1`. Veamos qué pasa si lo actualizamos enviándole la versión `0`.
+
+````bash
+$ curl -v -X PUT -H "Content-Type: application/json" -H "If-Match: 0" -d "{\"description\": \"Realizar Unit Test\", \"status\": \"TO_DO\", \"assigneeId\": 1, \"tagIds\": [1,3]}" http://localhost:8080/api/v1/items/34 | jq
+>
+< HTTP/1.1 412 Precondition Failed
+< Content-Type: application/json
+<
+{
+  "message": "El item tiene una versión diferente a la esperada. Se esperaba [0], se encontró [1]"
+}
+````
+
+````bash
+$ curl -v -X DELETE -H "If-Match: 1" http://localhost:8080/api/v1/items/34 | jq
+>
+< HTTP/1.1 204 No Content
+<
+````
+
+````bash
+$ curl -v -X DELETE -H "If-Match: 1" http://localhost:8080/api/v1/items/34 | jq
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: application/json
+< Content-Length: 42
+<
+{
+  "message": "No se encuentra el item [34]"
+}
 ````
 
 
