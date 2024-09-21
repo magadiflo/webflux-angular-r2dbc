@@ -1436,13 +1436,14 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Flux<TagResource> findAllTags() {
-        return this.tagRepository.findAll()
+        return this.tagRepository.findAll(DEFAULT_SORT)
                 .map(this.tagMapper::toTagResource);
     }
 
     @Override
     public Mono<TagResource> findTagById(Long tagId) {
         return this.tagRepository.findById(tagId)
+                .switchIfEmpty(Mono.error(new TagNotFoundException(tagId)))
                 .map(this.tagMapper::toTagResource);
     }
 }
@@ -1582,3 +1583,48 @@ $ curl -v http://localhost:8080/api/v1/persons/20 | jq
 ````
 
 ### Tag
+
+````bash
+$ curl -v http://localhost:8080/api/v1/tags
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/event-stream;charset=UTF-8
+<
+data:{"id":6,"name":"Drink"}
+
+data:{"id":5,"name":"Meal"}
+
+data:{"id":3,"name":"Meeting"}
+
+data:{"id":2,"name":"Private"}
+
+data:{"id":4,"name":"Sport"}
+
+data:{"id":7,"name":"Vacation"}
+
+data:{"id":1,"name":"Work"}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/tags/3 | jq
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+<
+{
+  "id": 3,
+  "name": "Meeting"
+}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/tags/30 | jq
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: application/json
+<
+* Connection #0 to host localhost left intact
+{
+  "message": "No se encuentra el tag [30]"
+}
+````

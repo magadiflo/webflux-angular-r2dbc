@@ -1,5 +1,6 @@
 package dev.magadiflo.app.service.impl;
 
+import dev.magadiflo.app.exception.TagNotFoundException;
 import dev.magadiflo.app.mapper.TagMapper;
 import dev.magadiflo.app.model.dto.TagResource;
 import dev.magadiflo.app.repository.TagRepository;
@@ -24,13 +25,14 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Flux<TagResource> findAllTags() {
-        return this.tagRepository.findAll()
+        return this.tagRepository.findAll(DEFAULT_SORT)
                 .map(this.tagMapper::toTagResource);
     }
 
     @Override
     public Mono<TagResource> findTagById(Long tagId) {
         return this.tagRepository.findById(tagId)
+                .switchIfEmpty(Mono.error(new TagNotFoundException(tagId)))
                 .map(this.tagMapper::toTagResource);
     }
 }
