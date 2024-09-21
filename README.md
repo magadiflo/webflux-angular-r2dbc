@@ -726,32 +726,32 @@ se encargarán de poblar individualmente cada tabla. Estos archivos los crearemo
 
 ````sql
 -- db/mock/insert_mock_persons.sql
-INSERT INTO persons(id, first_name, last_name)
-VALUES(1, 'Yumixsa', 'Ramos'),
-(2, 'María', 'Díaz'),
-(3, 'Vanessa', 'Bello'),
-(4, 'Fred', 'Curay');
+INSERT INTO persons(first_name, last_name)
+VALUES('Yumixsa', 'Ramos'),
+('María', 'Díaz'),
+('Vanessa', 'Bello'),
+('Fred', 'Curay');
 ````
 
 ````sql
 -- db/mock/insert_mock_items.sql
-INSERT INTO items(id, description, status, assignee_id)
-VALUES(1, 'El folleto debe enviarse vía mail', 'TO_DO', 1),
-(2, 'El usuario debe poder reestablecer su contraseña', 'TO_DO', 2),
-(3, 'El usuario podrá exportar sus datos', 'IN_PROGRESS', 3),
-(4, 'El usuario tendrá 7 días gratis de acceso premium', 'DONE', 4);
+INSERT INTO items(description, status, assignee_id)
+VALUES('El folleto debe enviarse vía mail', 'TO_DO', 1),
+('El usuario debe poder reestablecer su contraseña', 'TO_DO', 2),
+('El usuario podrá exportar sus datos', 'IN_PROGRESS', 3),
+('El usuario tendrá 7 días gratis de acceso premium', 'DONE', 4);
 ````
 
 ````sql
 -- db/mock/insert_mock_tags.sql
-INSERT INTO tags(id, name)
-VALUES(1, 'Work'),
-(2, 'Private'),
-(3, 'Meeting'),
-(4, 'Sport'),
-(5, 'Meal'),
-(6, 'Drink'),
-(7, 'Vacation');
+INSERT INTO tags(name)
+VALUES('Work'),
+('Private'),
+('Meeting'),
+('Sport'),
+('Meal'),
+('Drink'),
+('Vacation');
 ````
 
 ````sql
@@ -1317,8 +1317,10 @@ public class ItemServiceImpl implements ItemService {
                     return this.itemTagRepository
                             .saveAll(itemTags)
                             .collectList()
-                            .thenReturn(this.itemMapper.toItemResource(itemDB));
-                });
+                            .thenReturn(itemDB);
+                })
+                .flatMap(this::loadRelations)
+                .map(this.itemMapper::toItemResource);
     }
 
     @Override
@@ -1628,3 +1630,107 @@ $ curl -v http://localhost:8080/api/v1/tags/30 | jq
   "message": "No se encuentra el tag [30]"
 }
 ````
+
+### Item
+
+````bash
+$ curl -v http://localhost:8080/api/v1/items
+>
+< HTTP/1.1 200 OK
+< Content-Type: text/event-stream;charset=UTF-8
+<
+data:{"id":1,"description":"El folleto debe enviarse vía mail","status":"TO_DO","assignee":{"id":1,"firstName":"Yumixsa","lastName":"Ramos"},"tags":[{"id":2,"name":"Private"},{"id":7,"name":"Vacation"}],"version":0,"createdDate":"2024-09-16T11:26:17.649163","lastModifiedDate":"2024-09-16T11:26:17.649163"}
+
+data:{"id":2,"description":"El usuario debe poder reestablecer su contraseña","status":"TO_DO","assignee":{"id":2,"firstName":"María","lastName":"Díaz"},"tags":[{"id":6,"name":"Drink"},{"id":5,"name":"Meal"},{"id":3,"name":"Meeting"},{"id":1,"name":"Work"}],"version":0,"createdDate":"2024-09-16T11:26:17.649163","lastModifiedDate":"2024-09-16T11:26:17.649163"}
+
+data:{"id":3,"description":"El usuario podrá exportar sus datos","status":"IN_PROGRESS","assignee":{"id":3,"firstName":"Vanessa","lastName":"Bello"},"tags":[{"id":6,"name":"Drink"},{"id":1,"name":"Work"}],"version":0,"createdDate":"2024-09-16T11:26:17.649163","lastModifiedDate":"2024-09-16T11:26:17.649163"}
+
+data:{"id":4,"description":"El usuario tendrá 7 días gratis de acceso premium","status":"DONE","assignee":{"id":4,"firstName":"Fred","lastName":"Curay"},"tags":[{"id":2,"name":"Private"}],"version":0,"createdDate":"2024-09-16T11:26:17.649163","lastModifiedDate":"2024-09-16T11:26:17.649163"}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/items/2 | jq
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "description": "El usuario debe poder reestablecer su contraseña",
+  "status": "TO_DO",
+  "assignee": null,
+  "tags": null,
+  "version": 0,
+  "createdDate": "2024-09-16T11:26:17.649163",
+  "lastModifiedDate": "2024-09-16T11:26:17.649163"
+}
+````
+
+````bash
+$ curl -v -G --data "loadRelations=true" http://localhost:8080/api/v1/items/2 | jq
+>
+< HTTP/1.1 200 OK
+< Content-Type: application/json
+<
+{
+  "id": 2,
+  "description": "El usuario debe poder reestablecer su contraseña",
+  "status": "TO_DO",
+  "assignee": {
+    "id": 2,
+    "firstName": "María",
+    "lastName": "Díaz"
+  },
+  "tags": [
+    {
+      "id": 6,
+      "name": "Drink"
+    },
+    {
+      "id": 5,
+      "name": "Meal"
+    },
+    {
+      "id": 3,
+      "name": "Meeting"
+    },
+    {
+      "id": 1,
+      "name": "Work"
+    }
+  ],
+  "version": 0,
+  "createdDate": "2024-09-16T11:26:17.649163",
+  "lastModifiedDate": "2024-09-16T11:26:17.649163"
+}
+````
+
+````bash
+$ curl -v http://localhost:8080/api/v1/items/20 | jq
+>
+< HTTP/1.1 404 Not Found
+< Content-Type: application/json
+<
+{
+  "message": "No se encuentra el item [20]"
+}
+````
+
+````bash
+$ curl -v -X POST -H "Content-Type: application/json" -d "{\"description\": \"Realizar Pruebas Unitarias\"}" http://localhost:8080/api/v1/items | jq
+>
+< HTTP/1.1 201 Created
+< Content-Type: application/json
+<
+{
+  "id": 5,
+  "description": "Realizar Pruebas Unitarias",
+  "status": "TO_DO",
+  "assignee": null,
+  "tags": [],
+  "version": 0,
+  "createdDate": "2024-09-20T20:20:44.1123982",
+  "lastModifiedDate": "2024-09-20T20:20:44.1123982"
+}
+````
+

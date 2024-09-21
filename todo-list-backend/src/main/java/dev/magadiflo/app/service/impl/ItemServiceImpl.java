@@ -65,8 +65,10 @@ public class ItemServiceImpl implements ItemService {
                     return this.itemTagRepository
                             .saveAll(itemTags)
                             .collectList()
-                            .thenReturn(this.itemMapper.toItemResource(itemDB));
-                });
+                            .thenReturn(itemDB);
+                })
+                .flatMap(this::loadRelations)
+                .map(this.itemMapper::toItemResource);
     }
 
     @Override
